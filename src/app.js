@@ -35,4 +35,20 @@ app.use(express.static("public"))
 app.use(cookieParser())
 
 
+// routes import
+import userRouter from './routes/user.routes.js'
+
+// routes declaration
+// iin basic backend code we wrote app.get() becaueswaha pr hm app k through wahi pr hi routes or wahi pr hi controller likh rahe the
+// yaha pr hm ek tarah se through middleware likhte h  
+
+// Now yaha pr jb bhi koi bhi user /users likhega wo userRouter routes ptr jaaega
+
+// URL -> https://localhost:8000/users/{yaha pr jo bhi rpute userregister m likha ho ga waha pr jaaega and wo method perform krega}
+// app.use("/users",userRouter)
+
+// More standard common practice
+// URL -> https://localhost:8000/api/v1/users/{yaha pr jo bhi rpute userregister m likha ho ga waha pr jaaega and wo method perform krega}
+app.use("/api/v1/users",userRouter)
+
 export {app}
