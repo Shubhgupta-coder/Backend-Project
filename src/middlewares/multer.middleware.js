@@ -15,4 +15,5 @@ const storage = multer.diskStorage({
     }
   })
   
+  // This Upload is a niddleware function 
   export const upload = multer({ storage: storage })

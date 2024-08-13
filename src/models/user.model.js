@@ -63,7 +63,7 @@ userSchema.pre("save", async function (next) {
   // Agar password modified hora h to ye bcrypt kro
   // here 10 is a number of rounds (Just algo)
   // yaha pr hm apne passsword k bcrypt kr re h
-  this.password = bcrypt.hash(this.password, 10);
+  this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
@@ -71,9 +71,9 @@ userSchema.pre("save", async function (next) {
 
 // this method will check whether our pasword is correct or not
 
-userSchema.methods.isPasswordCorrect = async function (passsword) {
+userSchema.methods.isPasswordCorrect = async function (password) {
   // This method is used to compare wheteher password is correct or not
-  return await bcrypt.compare(passsword, this.passsword);
+  return await bcrypt.compare(password, this.password);
 };
 
 userSchema.methods.generateAccessToken = function () {
@@ -109,4 +109,5 @@ userSchema.methods.generateRefershToken = function () {
   );
 };
 
+// This User can directly interact with DataBase 
 export const User = mongoose.model("User", userSchema);
