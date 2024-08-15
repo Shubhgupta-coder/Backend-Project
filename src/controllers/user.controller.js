@@ -323,7 +323,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 // It is very easy to get current User from req.user .Because we have a middleware set in auth.middleware , which set the whole user to req.user
 
 const getCurrentUser = asyncHandler(async (req, res) => {
-  res.status(200).json(200, req.user, "Current USer Fetched Successfully");
+  res.status(200).json(new ApiResponse(200, req.user, "Current USer Fetched Successfully"));
 });
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
@@ -357,7 +357,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 // Now we have to update file
 
 // First update avatar
-const updataUserAvatar = asyncHandler(async (req, res) => {
+const updateUserAvatar = asyncHandler(async (req, res) => {
   // First took the path f our avatar from req.file
   const avatarLocalPath = req.file?.path; //req.file we got from multer middleware;
   if (!avatarLocalPath) {
@@ -390,7 +390,9 @@ const updataUserAvatar = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Avataar image upadaetd successfully"));
 });
 
-const updataUserCoverImage = asyncHandler(async (req, res) => {
+
+//Now we have to update cover imagae
+const updateUserCoverImage = asyncHandler(async (req, res) => {
     // First took the path f our avatar from req.file
     const coverImageLocalPath = req.file?.path; //req.file we got from multer middleware;
     if (!coverImageLocalPath) {
@@ -423,7 +425,108 @@ const updataUserCoverImage = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, user, "Cover image upadated successfully"));
   });
 
-//Now we have to update cover imagae
+//Now we have to get user channel profile
+// MONGO DB AGGREGATE PIPELINE
+
+const getUserChannelProfile = asyncHandler(async(req,res)=>{
+  // if we had to get user channel profile , first we go to the URL of that channel 
+   const {username} = req.params ;
+   if(!username?.trim()){
+    throw new ApiError(400,"Username is missing")
+   }
+
+  //  Aggregation 
+  // We have an array and in this inside objects we write pipelines  [{},{},{}] //these objects are pipelien 
+  // And after aggregation  we get array as a return data type
+  const channel =  await User.aggregate(
+    [
+      {
+        // here we write on what basis we have to write  or filter our documents , here we filter on the basis of username
+        $match:{
+          username:username?.toLowerCase()
+        }
+      },
+      // Now we have to find the subscriber of user , 
+      // for that we have to write lookup [basically like a join ]
+      // jb bhi hme kisi channel k subscriber count krne hote h to hm usme us channel ki count krte h , ki mtlb wo channel kitni baar aaya hoga
+      // uske itni baar hi document bane hoge or uske utne hi subscriber honge
+
+      {
+        $lookup:{
+          from: "subscriptions",  // means is model m se dekho 
+          localField:_id,         // basicaaly user ki id jiske hame subscriber nikalne h 
+          foreignField:"channel", // jb hm us user k subscriber nikalne h to uske channel ko select kr li jiye
+          as: "subscribers"
+        }
+      },
+
+      // Now we have to find ki us channel or user ne uske kitne channel ko subscribe kia hua
+      // To basicaaly hm subscriber ko cnt krre h jiska nikalne h , ki usne kitne channel ko subscribe kia hau h 
+      {
+        $lookup:{
+          from: "subscriptions",  // means is model m se dekho 
+          localField:_id,         // basicaaly user ki id jiske hame subscriber nikalne h 
+          foreignField:"subscriber",
+          as: "subscribedTo"
+        }
+      },
+
+      // Now we hsve to add these fields in User model
+      {
+        $addFields:{
+          // isme basically hme jo hmne subscribers nikale uska count nikalna h 
+          subscriberCount: {
+             $size:"$subscribers"
+          },
+          channelSubscribedToCount:{
+              $size:"$subscribedTo"
+          },
+          // In this we have to find whether we had already  subscribe that channel or not
+          // Here we try to write that in conditions 
+          // we can check this if user name  is in the list of subscriber or nor
+          isSubscribed:{
+              $cond:{
+                // we cna check theat whether username is present or not , through in operator
+                // $in: This operator checks whether a value (the user's _id in this case) is in an array (in this case, "$subscribers.subscriber").
+                // $subscribers.subscriber": This references the subscriber field inside the subscribers array in your document. 
+                if:{$in:[req.user?._id,"$subscribers.subscriber"]},
+                then:true,
+                else:false
+              }
+          } 
+        }
+      },
+      // yaha pr hmne jo jo cheeze select kri h khaali wo wo cheeze hi jaaengi
+      {
+        $project:{
+          fullName:1,
+          username:1,
+          subscriberCount:1,
+          channelSubscribedToCount:1,
+          isSubscribed:1,
+          avatar:1,
+          coverImage:1,
+          email:1
+        }
+      }
+    ]
+  )
+
+  if(!channel?.length){
+    throw new ApiError(404,"channel does not exist")
+  }
+
+  // Aggregate pipeline returns
+  // In most of the cases it returns value like this [{},{}] //array and inside that array according to match it gave us obhjext
+  // since we have only 1 match condition so it will return only single object inside array 
+  // We have to return channel[0] . means inside channel array we have to return first object
+
+  return res.status(200).
+  json(
+    new ApiResponse(200,channel[0],"User Channel Fetched successfully")
+  )
+  
+})
 export {
   registerUser, 
   loginUser,
@@ -432,6 +535,7 @@ export {
   getCurrentUser,
   changeCurrentPassword,
   updateAccountDetails,
-  updataUserAvatar,
-  updataUserCoverImage
+  updateUserAvatar,
+  updateUserCoverImage,
+  getUserChannelProfile
 };
